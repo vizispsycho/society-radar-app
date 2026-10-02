@@ -2,173 +2,293 @@ import streamlit as st
 import pandas as pd
 import requests
 import plotly.express as px
+from pytrends.request import TrendReq
 
-# 1. Page Configuration
-st.set_page_config(page_title="World Bank Macro & Stability Radar", layout="wide")
+# ---------------------------------------------------------
+# 1. Page Configuration & Theme
+# ---------------------------------------------------------
+st.set_page_config(
+    page_title="Macro Stability & Market Demand Radar",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-st.title("🌐 World Bank Macro Radar: Societal Stress & Market Signals")
-st.caption("Live open-source economic indicators transformed into stability risk and service opportunities.")
+st.title("🌐 Macro Societal Radar: Stability, Threat & Market Demand")
+st.caption(
+    "Predictive socio-economic engine tracking structural unrest risk "
+    "and emerging consumer demands via World Bank macro-data and Google Trends signals."
+)
 
-# 2. Country Selector Mapping (Country Name -> ISO-2 Code)
+# ---------------------------------------------------------
+# 2. Geography Mapping (ISO-2 Codes)
+# ---------------------------------------------------------
 COUNTRIES = {
-    "United States": "US",
-    "India": "IN",
-    "United Kingdom": "GB",
-    "Germany": "DE",
-    "Brazil": "BR",
-    "South Africa": "ZA",
-    "Japan": "JP",
-    "World Average": "WLD"
+    "India": {"wb": "IN", "geo": "IN"},
+    "United States": {"wb": "US", "geo": "US"},
+    "United Kingdom": {"wb": "GB", "geo": "GB"},
+    "Germany": {"wb": "DE", "geo": "DE"},
+    "South Africa": {"wb": "ZA", "geo": "ZA"},
+    "Brazil": {"wb": "BR", "geo": "BR"},
+    "Kenya": {"wb": "KE", "geo": "KE"},
+    "World Aggregate": {"wb": "WLD", "geo": ""}
 }
 
-st.sidebar.header("Geography & Settings")
-selected_country_name = st.sidebar.selectbox("Select Country / Region", list(COUNTRIES.keys()), index=1)
-country_code = COUNTRIES[selected_country_name]
+st.sidebar.header("🕹️ Regional Parameter Controls")
+selected_country = st.sidebar.selectbox("Select Target Nation", list(COUNTRIES.keys()), index=0)
+country_meta = COUNTRIES[selected_country]
 
-# 3. Cached Data Fetcher from World Bank API
-@st.cache_data(ttl=3600)  # Caches data for 1 hour so the app stays fast
-def fetch_world_bank_indicator(country_iso, indicator_code):
-    """
-    World Bank API Endpoint:
-    Returns the last 15 recorded annual observations for an indicator.
-    """
-    url = f"https://api.worldbank.org/v2/country/{country_iso}/indicator/{indicator_code}?format=json&mrv=15"
+# ---------------------------------------------------------
+# 3. Live World Bank Multi-Indicator Ingestion Engine
+# ---------------------------------------------------------
+INDICATOR_REGISTRY = {
+    "Inflation (CPI %)": "FP.CPI.TOTL.ZG",
+    "GDP Growth (Annual %)": "NY.GDP.MKTP.KD.ZG",
+    "Youth Unemployment (% ages 15-24)": "SL.UEM.1524.ZS",
+    "Total Unemployment (% of total labor force)": "SL.UEM.TOTL.ZS",
+    "Food Production Index (2014-2016 = 100)": "AG.PRD.FOOD.XD"
+}
+
+@st.cache_data(ttl=86400)  # Cached for 24 hours to ensure high speed
+def fetch_world_bank_series(country_iso, indicator_code, num_years=12):
+    """Fetches clean longitudinal observations from the World Bank API."""
+    url = f"https://api.worldbank.org/v2/country/{country_iso}/indicator/{indicator_code}?format=json&mrv={num_years}"
     try:
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        
-        # World Bank API returns a list where index [1] contains the actual records
-        if len(data) > 1 and data[1]:
+        res = requests.get(url, timeout=12)
+        payload = res.json()
+        if len(payload) > 1 and payload[1]:
             records = [
-                {"Year": int(item["date"]), "Value": item["value"]}
-                for item in data[1]
-                if item["value"] is not None
+                {"Year": int(row["date"]), "Value": float(row["value"])}
+                for row in payload[1]
+                if row["value"] is not None
             ]
             df = pd.DataFrame(records)
             return df.sort_values("Year", ascending=True)
         return pd.DataFrame(columns=["Year", "Value"])
-    except Exception as e:
-        st.error(f"Error fetching indicator: {e}")
+    except Exception:
         return pd.DataFrame(columns=["Year", "Value"])
 
-# Indicator Codes from World Bank:
-# FP.CPI.TOTL.ZG = Inflation, consumer prices (annual %)
-# NY.GDP.MKTP.KD.ZG = GDP growth (annual %)
-with st.spinner(f"Fetching live World Bank data for {selected_country_name}..."):
-    inflation_df = fetch_world_bank_indicator(country_code, "FP.CPI.TOTL.ZG")
-    gdp_df = fetch_world_bank_indicator(country_code, "NY.GDP.MKTP.KD.ZG")
+# Ingest all indicators
+with st.spinner(f"Ingesting live macro-series for {selected_country}..."):
+    macro_datasets = {}
+    for label, code in INDICATOR_REGISTRY.items():
+        macro_datasets[label] = fetch_world_bank_series(country_meta["wb"], code)
 
-# 4. Metric Processing
-if not inflation_df.empty:
-    latest_inflation = inflation_df.iloc[-1]["Value"]
-    latest_year = inflation_df.iloc[-1]["Year"]
-    prev_inflation = inflation_df.iloc[-2]["Value"] if len(inflation_df) > 1 else latest_inflation
-    inflation_delta = round(latest_inflation - prev_inflation, 2)
-else:
-    latest_inflation, latest_year, inflation_delta = 0.0, "N/A", 0.0
+# ---------------------------------------------------------
+# 4. Live High-Frequency Digital Sentiment (Google Trends)
+# ---------------------------------------------------------
+@st.cache_data(ttl=7200)  # 2-hour cache for search signals
+def fetch_societal_search_velocity(geo_code):
+    """Pulls search trend velocities for anxiety and economic search terms."""
+    if not geo_code:
+        return pd.DataFrame()
+    try:
+        pytrends = TrendReq(hl="en-US", tz=360, timeout=(10, 25))
+        keywords = ["stress", "layoff", "debt", "cheap food"]
+        pytrends.build_payload(keywords, timeframe="today 3-m", geo=geo_code)
+        interest_df = pytrends.interest_over_time()
+        if not interest_df.empty:
+            return interest_df.drop(columns=["isPartial"], errors="ignore")
+        return pd.DataFrame()
+    except Exception:
+        return pd.DataFrame()
 
-if not gdp_df.empty:
-    latest_gdp = gdp_df.iloc[-1]["Value"]
-    prev_gdp = gdp_df.iloc[-2]["Value"] if len(gdp_df) > 1 else latest_gdp
-    gdp_delta = round(latest_gdp - prev_gdp, 2)
-else:
-    latest_gdp, gdp_delta = 0.0, 0.0
+search_trends_df = fetch_societal_search_velocity(country_meta["geo"])
 
-# 5. Top Overview Metrics
-col1, col2, col3 = st.columns(3)
+# ---------------------------------------------------------
+# 5. Composite Societal Instability Index (CSII) Calculation
+# ---------------------------------------------------------
+# Extract most recent data points
+def get_latest_metric(df):
+    if not df.empty:
+        return df.iloc[-1]["Value"], int(df.iloc[-1]["Year"])
+    return 0.0, 0
 
-with col1:
+latest_inf, year_inf = get_latest_metric(macro_datasets["Inflation (CPI %)"])
+latest_gdp, _ = get_latest_metric(macro_datasets["GDP Growth (Annual %)"])
+latest_youth_unemp, year_unemp = get_latest_metric(macro_datasets["Youth Unemployment (% ages 15-24)"])
+latest_total_unemp, _ = get_latest_metric(macro_datasets["Total Unemployment (% of total labor force)"])
+latest_food_idx, _ = get_latest_metric(macro_datasets["Food Production Index (2014-2016 = 100)"])
+
+# Structural Risk Algorithm (Heuristic based on conflict research):
+# Base = (Youth Unemployment * 1.5) + (Inflation * 1.2) - (GDP Growth * 0.8)
+raw_risk_score = (latest_youth_unemp * 1.5) + (latest_inf * 1.2) - (latest_gdp * 0.8)
+normalized_risk = max(5, min(95, int(raw_risk_score + 15)))
+
+# ---------------------------------------------------------
+# 6. Top Executive Overview KPI Cards
+# ---------------------------------------------------------
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+
+with kpi1:
     st.metric(
-        label=f"Inflation Rate ({latest_year})",
-        value=f"{latest_inflation:.2f}%",
-        delta=f"{inflation_delta:+.2f}% YoY",
+        label="Societal Friction Score",
+        value=f"{normalized_risk}/100",
+        delta="High Fragility" if normalized_risk > 50 else "Equilibrium",
         delta_color="inverse"
     )
 
-with col2:
+with kpi2:
     st.metric(
-        label=f"GDP Growth ({latest_year})",
-        value=f"{latest_gdp:.2f}%",
-        delta=f"{gdp_delta:+.2f}% YoY",
-        delta_color="normal"
+        label=f"Youth Unemployment ({year_unemp})",
+        value=f"{latest_youth_unemp:.1f}%",
+        help="Primary statistical driver of social volatility and radicalization."
     )
 
-with col3:
-    # Calculating Societal Economic Strain Index (Inflation vs Growth)
-    strain_score = max(0, min(100, int((latest_inflation * 6) - (latest_gdp * 3) + 20)))
-    status = "Elevated Strain" if strain_score > 50 else "Balanced / Low Stress"
-    st.metric(label="Calculated Economic Strain Index", value=f"{strain_score}/100", delta=status)
+with kpi3:
+    st.metric(
+        label=f"Consumer Inflation ({year_inf})",
+        value=f"{latest_inf:.2f}%",
+        help="Annual CPI growth - direct driver of real-wage contraction."
+    )
+
+with kpi4:
+    st.metric(
+        label="Real GDP Trajectory",
+        value=f"{latest_gdp:.2f}%",
+        help="Annual economic absorption capacity."
+    )
 
 st.divider()
 
-# 6. Interactive Analysis Tabs
-tab1, tab2 = st.tabs(["📊 Live Economic Dynamics", "💡 Societal Risk & Market Demands"])
+# ---------------------------------------------------------
+# 7. Multi-Domain Dashboard Views
+# ---------------------------------------------------------
+tab_radar, tab_charts, tab_opportunities = st.tabs([
+    "🛡️ Societal Threat & Friction Analysis",
+    "📈 Longitudinal Data Streams",
+    "🛍️ Market Opportunities & Well-Being Solutions"
+])
 
-with tab1:
-    st.subheader(f"Historical Economic Volatility: {selected_country_name}")
+# TAB 1: THREAT & CONFLICT PREDICTION
+with tab_radar:
+    st.subheader(f"Predictive Threat Analysis: {selected_country}")
     
-    chart_col1, chart_col2 = st.columns(2)
+    col_threat_a, col_threat_b = st.columns([1.2, 1])
     
-    with chart_col1:
-        if not inflation_df.empty:
-            fig_inf = px.line(
-                inflation_df, x="Year", y="Value",
-                title="Consumer Inflation Rate (Annual %)",
-                markers=True, line_shape="spline",
-                labels={"Value": "Inflation (%)", "Year": "Year"}
+    with col_threat_a:
+        st.markdown("#### Structural Conflict Vectors")
+        
+        threat_factors = []
+        if latest_youth_unemp > 20.0:
+            threat_factors.append(
+                f"🔴 **Acute Youth Marginalization ({latest_youth_unemp:.1f}%):** "
+                "Significant cohorts of educated or semi-skilled youth without labor absorption. "
+                "Historical models identify this as the strongest baseline for organized civil unrest, "
+                "vandalism, and political polarization."
             )
-            fig_inf.update_traces(line_color="#EF4444")
-            st.plotly_chart(fig_inf, use_container_width=True)
-        else:
-            st.warning("No inflation data available.")
-
-    with chart_col2:
-        if not gdp_df.empty:
-            fig_gdp = px.bar(
-                gdp_df, x="Year", y="Value",
-                title="Annual GDP Growth Rate (%)",
-                labels={"Value": "Growth (%)", "Year": "Year"}
+        if latest_inf > 7.0:
+            threat_factors.append(
+                f"🔴 **Purchasing Power Shock ({latest_inf:.1f}%):** "
+                "Rapid basic necessity cost escalation. Triggers wildcat strikes, transport shutdowns, "
+                "and consumer boycott movements."
             )
-            fig_gdp.update_traces(marker_color="#3B82F6")
-            st.plotly_chart(fig_gdp, use_container_width=True)
+        if latest_gdp < 1.5:
+            threat_factors.append(
+                f"🟡 **Economic Stagnation Trap ({latest_gdp:.1f}%):** "
+                "Limited fiscal flexibility and slow job creation."
+            )
+        
+        if not threat_factors:
+            st.success("✅ **No Extreme Structural Warnings Active:** All macro parameters remain within historically balanced operating bands.")
         else:
-            st.warning("No GDP growth data available.")
+            for factor in threat_factors:
+                st.write(factor)
+                
+        st.info(
+            "**Intelligence Note:** Macro-structural indicators do not cause immediate violence on their own; "
+            "they define societal vulnerability. A sudden political event, price hike, or scandal acts as the "
+            "trigger within high-friction environments."
+        )
 
-with tab2:
-    st.subheader("Societal Stress & Market Opportunity Engine")
+    with col_threat_b:
+        # Radar Chart of Pressure Points
+        radar_df = pd.DataFrame({
+            "Pillar": ["Youth Friction", "Inflation Strain", "Labor Dislocation", "Growth Deficit", "Food Stability Risk"],
+            "Intensity": [
+                min(100, latest_youth_unemp * 3),
+                min(100, latest_inf * 5),
+                min(100, latest_total_unemp * 4),
+                max(0, min(100, (6 - latest_gdp) * 15)),
+                max(0, min(100, (120 - latest_food_idx) * 2)) if latest_food_idx > 0 else 30
+            ]
+        })
+        fig_radar = px.line_polar(radar_df, r="Intensity", theta="Pillar", line_close=True, title="Societal Vulnerability Pentagon")
+        fig_radar.update_traces(fill="toself", line_color="#EF4444" if normalized_risk > 50 else "#3B82F6")
+        st.plotly_chart(fig_radar, use_container_width=True)
+
+# TAB 2: LONGITUDINAL CHARTS
+with tab_charts:
+    st.subheader("Historical 12-Year Macro Trends (World Bank)")
     
-    risk_col, opp_col = st.columns(2)
+    chart_row1_col1, chart_row1_col2 = st.columns(2)
+    chart_row2_col1, chart_row2_col2 = st.columns(2)
     
-    with risk_col:
-        st.markdown("### 🛡️ Societal Stability Assessment")
-        if latest_inflation > 6.0:
+    with chart_row1_col1:
+        if not macro_datasets["Inflation (CPI %)"].empty:
+            f1 = px.line(macro_datasets["Inflation (CPI %)"], x="Year", y="Value", title="Consumer Price Inflation (%)", markers=True)
+            f1.update_traces(line_color="#E11D48")
+            st.plotly_chart(f1, use_container_width=True)
+            
+    with chart_row1_col2:
+        if not macro_datasets["Youth Unemployment (% ages 15-24)"].empty:
+            f2 = px.bar(macro_datasets["Youth Unemployment (% ages 15-24)"], x="Year", y="Value", title="Youth Unemployment Rate (%)")
+            f2.update_traces(marker_color="#F59E0B")
+            st.plotly_chart(f2, use_container_width=True)
+
+    with chart_row2_col1:
+        if not macro_datasets["GDP Growth (Annual %)"].empty:
+            f3 = px.bar(macro_datasets["GDP Growth (Annual %)"], x="Year", y="Value", title="Annual GDP Growth Rate (%)")
+            f3.update_traces(marker_color="#10B981")
+            st.plotly_chart(f3, use_container_width=True)
+            
+    with chart_row2_col2:
+        if not search_trends_df.empty:
+            st.markdown("**Public Interest Trends (Last 90 Days - Google Trends)**")
+            st.line_chart(search_trends_df)
+        else:
+            st.info("Google Trends search velocity not indexed for this selected territory.")
+
+# TAB 3: MARKETING, PRODUCT & SERVICE DEMANDS
+with tab_opportunities:
+    st.subheader("Actionable Business, Service & Well-Being Recommendations")
+    st.write("Using societal stress dynamics to design high-demand, high-impact products and interventions.")
+    
+    opp_col1, opp_col2 = st.columns(2)
+    
+    with opp_col1:
+        st.markdown("### 🛒 Consumer Product & Service Directions")
+        if latest_inf > 5.0 or latest_youth_unemp > 18.0:
             st.error(
-                f"**High Discontent Alert:** High annual inflation ({latest_inflation:.2f}%) "
-                "rapidly outpaces baseline real wages. Historical patterns show this environment "
-                "correlates with higher propensity for strikes, organized labor friction, and price protests."
-            )
-        elif latest_gdp < 1.0:
-            st.warning(
-                f"**Economic Stagnation Risk:** Weak output growth ({latest_gdp:.2f}%) "
-                "drives youth underemployment and increases vulnerability to political radicalization."
+                "**Market Dynamic: The Value-First & Micro-Income Shift**\n\n"
+                "- **High-Demand Product Profiles:**\n"
+                "  1. **Essential Micro-Sachet / Bulk Sharing:** Smaller pack sizes or neighborhood pooling tools to lower ticket costs.\n"
+                "  2. **Alternative Protein & Staple Swaps:** Products that replace expensive staples with nutritious, affordable alternatives.\n"
+                "  3. **Gig & Secondary Skill Monetization:** Tools that help young adults generate immediate freelance income.\n"
+                "- **Messaging Strategy:** Direct, functional, transparent; avoid luxury elitism."
             )
         else:
             st.success(
-                "**Stable Societal Equilibrium:** Macro parameters indicate healthy purchasing power "
-                "and steady economic absorption, minimizing collective unrest triggers."
+                "**Market Dynamic: Premium Convenience & Self-Optimization**\n\n"
+                "- **High-Demand Product Profiles:**\n"
+                "  1. **Cognitive & Physical Health Upgrades:** Specialized nutrition, ergonomic setups, preventive screening.\n"
+                "  2. **Automated Efficiency:** Time-saving meal kits, smart home routines, personal financial planners.\n"
+                "- **Messaging Strategy:** Focus on self-actualization, long-term health, and quality of life."
             )
 
-    with opp_col:
-        st.markdown("### 🛍️ Emerging Product & Service Demands")
-        if latest_inflation > 5.0:
-            st.info(
-                "**Target: Budget Optimization & Friction Relief**\n\n"
-                "- **High-Demand Concepts:** White-label staple distribution, micro-financing tools, bulk neighborhood grocery sharing apps.\n"
-                "- **Messaging:** Emphasize security, transparent pricing, and cost predictability."
+    with opp_col2:
+        st.markdown("### 🧘 Societal Well-Being & Mental Health Solutions")
+        if normalized_risk > 50:
+            st.warning(
+                "**Societal Friction State: High Collective Anxiety**\n\n"
+                "- **Service Interventions Needed:**\n"
+                "  1. **Low-Cost / Free Emotional First Aid:** Tele-counseling hotlines, community group therapy circles.\n"
+                "  2. **Physical Stress-Release Outlets:** Free community sports programs, group running clubs, public recreation events.\n"
+                "  3. **Financial De-Stigmatization Content:** Educational workshops on handling debt and building emergency cushions."
             )
         else:
             st.info(
-                "**Target: Expansion & Wellness**\n\n"
-                "- **High-Demand Concepts:** Preventive health services, career upskilling platforms, and lifestyle micro-upgrades.\n"
-                "- **Messaging:** Focus on self-improvement, longevity, and convenience."
+                "**Societal Friction State: Baseline Equilibrium**\n\n"
+                "- **Service Interventions Needed:**\n"
+                "  1. **Longevity & Habit Building:** Structured fitness communities, holistic mental hygiene habits.\n"
+                "  2. **Social Cohesion Initiatives:** Cultural festivals, localized creative workshops, mentorship ecosystems."
             )
