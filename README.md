@@ -1,0 +1,1 @@
+# society-radar-app
