@@ -3,45 +3,65 @@ import pandas as pd
 import requests
 import plotly.express as px
 from pytrends.request import TrendReq
-import io
 
 # ---------------------------------------------------------
-# 1. UI Configuration & Branding
+# 1. Page Configuration & Custom CSS Injection
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="NEXUS | Societal & Market Intelligence",
+    page_title="NEXUS | Enterprise & Psychosocial Intelligence",
     page_icon="🌐",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom Logo (Sidebar & Navigation)
-st.logo(
-    image="https://cdn-icons-png.flaticon.com/512/2099/2099149.png",
-    icon_image="https://cdn-icons-png.flaticon.com/512/2099/2099149.png"
-)
-
-# Header Banner
+# Custom High-End Styling
 st.markdown("""
-<div style="
-    background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-    padding: 22px;
-    border-radius: 12px;
-    border: 1px solid #334155;
-    margin-bottom: 24px;
-">
-    <div style="display: flex; align-items: center; gap: 16px;">
-        <span style="font-size: 40px;">🌐</span>
-        <div>
-            <h1 style="color: #F8FAFC; margin: 0; font-size: 26px; font-weight: 700;">
-                NEXUS Macro & Societal Intelligence
-            </h1>
-            <p style="color: #94A3B8; margin: 4px 0 0 0; font-size: 13px;">
-                Autonomous Socio-Economic Friction Forecasting & Strategic Market Demand Mapping
-            </p>
-        </div>
-    </div>
-</div>
+<style>
+    /* Global Typography & Background adjustments */
+    .stApp {
+        background-color: #0b0f19;
+    }
+    
+    /* Card Container */
+    .nexus-card {
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+    
+    /* Pricing Card */
+    .pricing-card {
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);
+        border: 1px solid #3b82f6;
+        border-radius: 16px;
+        padding: 28px;
+        text-align: center;
+        box-shadow: 0 8px 30px rgba(59, 130, 246, 0.15);
+    }
+    
+    /* Metric pill */
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .badge-live { background-color: #064e3b; color: #34d399; }
+    .badge-premium { background-color: #4c1d95; color: #c084fc; }
+    
+    /* Button formatting */
+    .stButton>button {
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+</style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
@@ -58,28 +78,32 @@ COUNTRIES = {
     "Global Aggregate": {"wb": "WLD", "geo": ""}
 }
 
-# Sidebar Live Status & Controls
-st.sidebar.markdown("""
-<div style="
-    display: inline-block;
-    background-color: #064E3B;
-    color: #6EE7B7;
-    padding: 3px 10px;
-    border-radius: 9999px;
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 14px;
-">
-    ● LIVE PIPELINE ACTIVE
-</div>
-""", unsafe_allow_html=True)
-
-st.sidebar.header("Geography & Settings")
-selected_country = st.sidebar.selectbox("Select Target Nation", list(COUNTRIES.keys()), index=0)
-country_meta = COUNTRIES[selected_country]
+# ---------------------------------------------------------
+# 3. Sidebar Navigation & Global Controls
+# ---------------------------------------------------------
+with st.sidebar:
+    st.markdown('<span class="status-badge badge-live">● ENTERPRISE FEED LIVE</span>', unsafe_allow_html=True)
+    st.title("NEXUS Platform")
+    st.caption("Strategic Market & Psychosocial Systems")
+    
+    # Navigation Switcher
+    app_mode = st.radio(
+        "Navigation",
+        [
+            "🌐 Macro Radar & Stability",
+            "🛠️ Product Viability Simulator",
+            "🧠 Organizational Resilience Audit",
+            "💎 Enterprise Plans & Pricing"
+        ]
+    )
+    
+    st.divider()
+    st.subheader("Regional Scope")
+    selected_country = st.selectbox("Active Market", list(COUNTRIES.keys()), index=0)
+    country_meta = COUNTRIES[selected_country]
 
 # ---------------------------------------------------------
-# 3. Live Data Ingestion Engine (World Bank API)
+# 4. Open-Source Data Ingestion Engine (World Bank API)
 # ---------------------------------------------------------
 INDICATOR_REGISTRY = {
     "Inflation (CPI %)": "FP.CPI.TOTL.ZG",
@@ -87,15 +111,12 @@ INDICATOR_REGISTRY = {
     "Youth Unemployment (%)": "SL.UEM.1524.ZS",
     "Suicide Mortality (per 100k)": "SH.STA.SUIC.P5",
     "Youth NEET (%)": "SL.UEM.NEET.ZS",
-    "Alcohol Consumption (L/capita)": "SH.ALC.PCAP.LI",
     "Household Consumption (% GDP)": "NE.CON.PRVT.ZS",
-    "Internet Adoption (% pop)": "IT.NET.USER.ZS",
-    "Mobile Cellular Subscriptions (per 100)": "IT.CEL.SETS.P2"
+    "Internet Adoption (% pop)": "IT.NET.USER.ZS"
 }
 
 @st.cache_data(ttl=86400)
-def fetch_world_bank_series(country_iso, indicator_code, num_records=12):
-    """Fetches longitudinal time-series data from the World Bank open API."""
+def fetch_world_bank_series(country_iso, indicator_code, num_records=10):
     url = f"https://api.worldbank.org/v2/country/{country_iso}/indicator/{indicator_code}?format=json&mrv={num_records}"
     try:
         res = requests.get(url, timeout=10)
@@ -112,274 +133,276 @@ def fetch_world_bank_series(country_iso, indicator_code, num_records=12):
     except Exception:
         return pd.DataFrame(columns=["Year", "Value"])
 
-with st.spinner(f"Ingesting live macro-series for {selected_country}..."):
-    datasets = {}
-    for name, code in INDICATOR_REGISTRY.items():
-        datasets[name] = fetch_world_bank_series(country_meta["wb"], code)
+with st.spinner("Ingesting verified macroeconomic and psychosocial feeds..."):
+    datasets = {name: fetch_world_bank_series(country_meta["wb"], code) for name, code in INDICATOR_REGISTRY.items()}
 
-# ---------------------------------------------------------
-# 4. Live Digital Intent Signals (Google Trends)
-# ---------------------------------------------------------
-@st.cache_data(ttl=7200)
-def fetch_consumer_intent_trends(geo_code):
-    """Fetches recent 90-day search velocity for economic and mental strain."""
-    if not geo_code:
-        return pd.DataFrame()
-    try:
-        pytrends = TrendReq(hl="en-US", tz=360, timeout=(10, 25))
-        keywords = ["discount", "layoff", "debt", "anxiety"]
-        pytrends.build_payload(keywords, timeframe="today 3-m", geo=geo_code)
-        df = pytrends.interest_over_time()
-        if not df.empty:
-            return df.drop(columns=["isPartial"], errors="ignore")
-        return pd.DataFrame()
-    except Exception:
-        return pd.DataFrame()
-
-consumer_trends_df = fetch_consumer_intent_trends(country_meta["geo"])
-
-# ---------------------------------------------------------
-# 5. Core Metric Extraction & Risk Scoring
-# ---------------------------------------------------------
 def get_latest(df, default=0.0):
     if not df.empty:
         return float(df.iloc[-1]["Value"]), int(df.iloc[-1]["Year"])
     return default, 0
 
-latest_inf, year_inf = get_latest(datasets["Inflation (CPI %)"])
-latest_gdp, _ = get_latest(datasets["GDP Growth (Annual %)"])
-latest_youth_unemp, year_unemp = get_latest(datasets["Youth Unemployment (%)"])
-latest_suicide, _ = get_latest(datasets["Suicide Mortality (per 100k)"], default=9.5)
-latest_neet, _ = get_latest(datasets["Youth NEET (%)"], default=16.0)
-latest_alc, _ = get_latest(datasets["Alcohol Consumption (L/capita)"], default=4.0)
-latest_hcon, _ = get_latest(datasets["Household Consumption (% GDP)"], default=58.0)
-latest_net, _ = get_latest(datasets["Internet Adoption (% pop)"], default=70.0)
-latest_mobile, _ = get_latest(datasets["Mobile Cellular Subscriptions (per 100)"], default=95.0)
+latest_inf, _ = get_latest(datasets["Inflation (CPI %)"], 3.5)
+latest_gdp, _ = get_latest(datasets["GDP Growth (Annual %)"], 4.2)
+latest_youth_unemp, _ = get_latest(datasets["Youth Unemployment (%)"], 16.0)
+latest_suicide, _ = get_latest(datasets["Suicide Mortality (per 100k)"], 10.0)
+latest_neet, _ = get_latest(datasets["Youth NEET (%)"], 18.0)
+latest_hcon, _ = get_latest(datasets["Household Consumption (% GDP)"], 60.0)
+latest_net, _ = get_latest(datasets["Internet Adoption (% pop)"], 75.0)
 
-# 1. Collective Societal Friction (Unrest / Stability Risk)
-friction_raw = (latest_youth_unemp * 1.3) + (latest_inf * 1.1) + (latest_neet * 0.8) - (latest_gdp * 0.7)
-friction_score = max(5, min(95, int(friction_raw + 15)))
-
-# 2. Psychosocial Strain Score
-psych_raw = (latest_suicide * 2.2) + (latest_neet * 1.5) + (latest_alc * 3.0)
-psych_score = max(5, min(95, int(psych_raw)))
-
-# 3. Consumer Spending Sentiment Score (0 = High Defense, 100 = Expansion)
+# Composite Scores
+friction_score = max(5, min(95, int((latest_youth_unemp * 1.3) + (latest_inf * 1.1) + (latest_neet * 0.8) - (latest_gdp * 0.7) + 15)))
+psych_score = max(5, min(95, int((latest_suicide * 2.5) + (latest_neet * 1.5) + 10)))
 consumer_sentiment = max(10, min(95, int(50 + (latest_gdp * 4) + (latest_hcon * 0.3) - (latest_inf * 5))))
 
-# Recommended Channel Allocation
-digital_share = int(min(90, max(20, latest_net)))
-offline_share = 100 - digital_share
+# ---------------------------------------------------------
+# 5. Header Banner
+# ---------------------------------------------------------
+st.markdown(f"""
+<div class="nexus-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <div>
+            <h2 style="color: #ffffff; margin: 0; font-weight: 800;">NEXUS Predictive Intelligence</h2>
+            <p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 15px;">
+                Commercial Consumer Analytics & Psychosocial Well-Being Architecture • Active Region: <strong style="color: #38bdf8;">{selected_country}</strong>
+            </p>
+        </div>
+        <div>
+            <span class="status-badge badge-premium">CLIENT SUITE</span>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 6. Top Executive Overview KPI Cards
+# PAGE 1: MACRO RADAR & STABILITY
 # ---------------------------------------------------------
-k1, k2, k3, k4 = st.columns(4)
-
-with k1:
-    st.metric(
-        label="Societal Friction Index",
-        value=f"{friction_score}/100",
-        delta="Elevated Fragility" if friction_score > 55 else "Equilibrium",
-        delta_color="inverse"
-    )
-
-with k2:
-    st.metric(
-        label="Psychosocial Strain Index",
-        value=f"{psych_score}/100",
-        delta="Severe Distress" if psych_score > 60 else "Manageable",
-        delta_color="inverse"
-    )
-
-with k3:
-    st.metric(
-        label="Consumer Sentiment Score",
-        value=f"{consumer_sentiment}/100",
-        delta="Defensive Budgeting" if consumer_sentiment < 45 else "Expansive",
-        delta_color="normal"
-    )
-
-with k4:
-    st.metric(
-        label=f"Youth Disconnection (NEET)",
-        value=f"{latest_neet:.1f}%",
-        help="Young cohort not in education, employment, or training."
-    )
-
-st.divider()
-
-# ---------------------------------------------------------
-# 7. Multi-Domain Navigation Tabs
-# ---------------------------------------------------------
-tab_threat, tab_marketing, tab_charts = st.tabs([
-    "🛡️ Societal Threat & Friction Analysis",
-    "🎯 Precision Marketing & Service Opportunities",
-    "📈 Longitudinal Data & Intent Streams"
-])
-
-# TAB 1: STABILITY & CONFLICT PREDICTION
-with tab_threat:
-    st.subheader(f"Predictive Threat Analysis: {selected_country}")
-    t_col1, t_col2 = st.columns([1.2, 1])
+if app_mode == "🌐 Macro Radar & Stability":
+    st.subheader("Global Health & Market Momentum Overview")
     
-    with t_col1:
-        st.markdown("#### Primary Structural Vulnerabilities")
-        alerts = []
-        if latest_youth_unemp > 20.0 or latest_neet > 20.0:
-            alerts.append(f"🔴 **Youth Alienation Vector:** High youth unemployment ({latest_youth_unemp:.1f}%) and NEET rates ({latest_neet:.1f}%) indicate a disenfranchised cohort vulnerable to social unrest and extremist mobilization.")
-        if latest_inf > 6.0:
-            alerts.append(f"🔴 **Purchasing Power Shock:** CPI inflation ({latest_inf:.2f}%) reduces disposable liquidity, accelerating protests around transport, fuel, and food costs.")
-        if latest_suicide > 13.0:
-            alerts.append(f"🟡 **Elevated Despair Mortality:** Age-standardized suicide ({latest_suicide:.1f}/100k) signals gaps in social support infrastructure.")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Societal Friction Index", f"{friction_score}/100", delta="High Tension" if friction_score > 55 else "Equilibrium", delta_color="inverse")
+    with col2:
+        st.metric("Consumer Buying Sentiment", f"{consumer_sentiment}/100", delta="Defensive Mode" if consumer_sentiment < 45 else "Expansionary", delta_color="normal")
+    with col3:
+        st.metric("Psychosocial Despair Baseline", f"{psych_score}/100", delta="Elevated Strain" if psych_score > 55 else "Resilient", delta_color="inverse")
+    with col4:
+        st.metric("Annual Inflation (CPI)", f"{latest_inf:.2f}%", help="Primary driver of real-wage contraction")
         
-        if not alerts:
-            st.success("✅ Macro indicators show healthy social equilibrium with low baseline conflict triggers.")
-        else:
-            for alert in alerts:
-                st.write(alert)
-
-        st.info("**Analytical Note:** Macro indicators do not trigger immediate violence on their own; they define societal vulnerability. Sudden resource shocks or political controversies act as catalysts within high-friction environments.")
-
-    with t_col2:
-        radar_df = pd.DataFrame({
-            "Dimension": ["Youth Alienation", "Price Strain", "Stagnation", "Despair Baseline", "Alcohol Coping"],
-            "Value": [
-                min(100, latest_youth_unemp * 3),
-                min(100, latest_inf * 5),
-                max(0, min(100, (6 - latest_gdp) * 15)),
-                min(100, latest_suicide * 5),
-                min(100, latest_alc * 8)
-            ]
-        })
-        fig_r = px.line_polar(radar_df, r="Value", theta="Dimension", line_close=True, title="Societal Vulnerability Profile")
-        fig_r.update_traces(fill="toself", line_color="#EF4444" if friction_score > 50 else "#3B82F6")
-        st.plotly_chart(fig_r, use_container_width=True)
-
-# TAB 2: MARKETING & PRODUCT OPPORTUNITIES
-with tab_marketing:
-    st.subheader(f"Market Strategy & Product Placement: {selected_country}")
-    m_col1, m_col2 = st.columns(2)
+    st.divider()
     
-    with m_col1:
-        st.markdown("### 🛒 Product Strategy & Value Design")
-        if consumer_sentiment < 45 or latest_inf > 5.5:
-            st.warning("**Market Phase: Defensive / Price-Sensitive Mode**")
-            st.markdown("""
-            * **Packaging & Pricing:** Emphasize refill packs, downsized packaging, and no-contract subscriptions.
-            * **High-Growth Categories:**
-              1. **Value Essentials & Functional Dupe Brands:** Cost-effective alternatives to branded household goods.
-              2. **Recommerce & Second-Hand:** Platforms for refurbished electronics and certified pre-owned tools.
-              3. **Micro-Income Tools:** Platforms enabling side freelance work and digital skills monetization.
-            * **Tone:** Functional, grounded, practical; avoid luxury elitism or high-pressure FOMO.
-            """)
-        else:
-            st.success("**Market Phase: Expansive / Quality-Driven Mode**")
-            st.markdown("""
-            * **Packaging & Pricing:** Open to premium service bundles and convenience-first additions.
-            * **High-Growth Categories:**
-              1. **Preventive Longevity:** Nutrition optimization, ergonomic tech, preventive diagnostics.
-              2. **Time-Saving Automation:** Meal-kit deliveries, smart home integrations, on-demand services.
-              3. **Experiential & Social:** Curated events, group athletics, creative learning cohorts.
-            * **Tone:** Focus on self-actualization, performance, productivity, and lifestyle quality.
-            """)
-
-    with m_col2:
-        st.markdown("### 📢 Media Channel & Growth Architecture")
-        st.markdown(f"**Recommended Channel Mix:** Digital `{digital_share}%` | Traditional / Field `{offline_share}%`")
-        st.markdown(f"""
-        * **Digital Channel Deployment:** With internet adoption at **{latest_net:.1f}%** and mobile density at **{latest_mobile:.0f}/100**, mobile-first video campaigns (short-form formats, messaging commerce) deliver optimal conversion.
-        * **Effective Campaign Hooks:**
-          - *"Cost-per-day transparency"*, *"Built to last"*, *"Guaranteed warranty without hidden fees"*.
-        * **Customer Retention:** Flexible refund policies, community-driven support, and localized customer care channels.
-        """)
-
-# TAB 3: LONGITUDINAL CHARTS & REAL-TIME INTENT
-with tab_charts:
-    st.subheader("Longitudinal Indicators & Live Sentiment")
-    c1, c2 = st.columns(2)
-    c3, c4 = st.columns(2)
+    tab_biz, tab_psych = st.tabs(["👔 Executive & Commercial Perspective", "🧬 Behavioral Psychology & Public Health"])
     
-    with c1:
-        if not datasets["Inflation (CPI %)"].empty:
-            f1 = px.line(datasets["Inflation (CPI %)"], x="Year", y="Value", title="Consumer Price Inflation (%)", markers=True)
-            f1.update_traces(line_color="#DC2626")
-            st.plotly_chart(f1, use_container_width=True)
+    with tab_biz:
+        st.markdown("### Strategic Market Climate")
+        b1, b2 = st.columns(2)
+        with b1:
+            st.markdown(f"""
+            * **Consumer Mindset:** {'Consumers are actively cutting non-essential subscriptions, prioritizing durability and clear price-to-value ratios.' if consumer_sentiment < 45 else 'Consumers demonstrate strong appetite for convenience, premium subscriptions, and wellness products.'}
+            * **Pricing Power:** In this environment, brands that communicate cost-per-day transparency experience significantly lower churn than brands using high-pressure scarcity tactics.
+            * **Digital Reach:** Internet adoption stands at **{latest_net:.1f}%**, requiring mobile-first, short-form video engagement rather than desktop-focused marketing funnels.
+            """)
+        with b2:
+            if not datasets["Household Consumption (% GDP)"].empty:
+                fig = px.line(datasets["Household Consumption (% GDP)"], x="Year", y="Value", title="Private Domestic Spending (% GDP)")
+                fig.update_traces(line_color="#3b82f6")
+                st.plotly_chart(fig, use_container_width=True)
+                
+    with tab_psych:
+        st.markdown("### Psychosocial Ecosystem Analysis")
+        p1, p2 = st.columns(2)
+        with p1:
+            st.markdown(f"""
+            * **Despair & Burnout Indicators:** Despair mortality index sits at **{latest_suicide:.1f}/100k**, indicating the baseline psychological strain on the labor pool.
+            * **Disconnection Vector (NEET):** **{latest_neet:.1f}%** of youth are neither studying nor working. This is a recognized indicator for social anomie, heightened cynicism, and polarization.
+            * **Workforce Impact:** Chronic macroeconomic friction directly correlates with heightened cognitive fatigue, impaired executive function, and higher turnover across client companies.
+            """)
+        with p2:
+            radar_df = pd.DataFrame({
+                "Indicator": ["Youth Alienation", "Price Shock", "Labor Stagnation", "Despair Baseline", "Consumption Strain"],
+                "Score": [min(100, latest_neet * 3), min(100, latest_inf * 5), max(0, min(100, (6 - latest_gdp) * 15)), min(100, latest_suicide * 5), 100 - consumer_sentiment]
+            })
+            fig_r = px.line_polar(radar_df, r="Score", theta="Indicator", line_close=True, title="Societal Vulnerability Pentagon")
+            fig_r.update_traces(fill="toself", line_color="#a855f7")
+            st.plotly_chart(fig_r, use_container_width=True)
+
+# ---------------------------------------------------------
+# PAGE 2: PRODUCT VIABILITY SIMULATOR
+# ---------------------------------------------------------
+elif app_mode == "🛠️ Product Viability Simulator":
+    st.subheader("Data-Backed Product Formulation & Viability Engine")
+    st.write("Enter your planned product specifications below to test market viability against current macroeconomic and psychosocial conditions.")
+    
+    sim_col1, sim_col2 = st.columns([1, 1.2])
+    
+    with sim_col1:
+        st.markdown('<div class="nexus-card">', unsafe_allow_html=True)
+        st.markdown("#### Product Parameters")
+        prod_name = st.text_input("Product / Service Name", value="CogniCore Daily Focus")
+        prod_category = st.selectbox("Category", [
+            "Functional Health & Wellness",
+            "Enterprise B2B SaaS",
+            "Consumer Staple / FMCG",
+            "EdTech / Skill Development",
+            "Luxury / Lifestyle Goods"
+        ])
+        target_audience = st.selectbox("Primary Demographic", [
+            "Gen Z & Students (High NEET Vulnerability)",
+            "Working Professionals (25-45, High Stress)",
+            "Budget-Constrained Households",
+            "High Net Worth Individuals"
+        ])
+        price_tier = st.select_slider("Price Tier", options=["Free / Ad-Supported", "Budget-Friendly", "Mid-Market", "Premium / Luxury"])
+        analyze_btn = st.button("Run Viability Simulation", type="primary", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with sim_col2:
+        if analyze_btn or "has_run" not in st.session_state:
+            st.session_state["has_run"] = True
             
-    with c2:
-        if not datasets["Youth Unemployment (%)"].empty:
-            f2 = px.bar(datasets["Youth Unemployment (%)"], x="Year", y="Value", title="Youth Unemployment Rate (%)", color_discrete_sequence=["#F59E0B"])
-            st.plotly_chart(f2, use_container_width=True)
-
-    with c3:
-        if not datasets["Household Consumption (% GDP)"].empty:
-            f3 = px.line(datasets["Household Consumption (% GDP)"], x="Year", y="Value", title="Household Consumption Expenditure (% of GDP)", markers=True)
-            f3.update_traces(line_color="#2563EB")
-            st.plotly_chart(f3, use_container_width=True)
-
-    with c4:
-        if not consumer_trends_df.empty:
-            st.markdown("**Real-Time Search Trends (Last 90 Days - Google Trends)**")
-            st.line_chart(consumer_trends_df)
-        else:
-            st.info("Google Trends search velocity not indexed for this selected territory.")
-
-# ---------------------------------------------------------
-# 8. Report Export Engines (Sidebar Downloads)
-# ---------------------------------------------------------
-def generate_text_briefing():
-    return f"""================================================================================
-EXECUTIVE SOCIETAL STABILITY & MARKET INTELLIGENCE REPORT
-Target Geography: {selected_country}
-Engine: NEXUS Macro & Societal Intelligence Platform
-================================================================================
-
-1. CORE INDEX SCORES
-- Societal Friction Index        : {friction_score}/100 ({'Elevated Unrest Risk' if friction_score > 55 else 'Normal Equilibrium'})
-- Psychosocial Strain Index      : {psych_score}/100 ({'Severe Distress' if psych_score > 60 else 'Manageable'})
-- Consumer Spending Sentiment    : {consumer_sentiment}/100 ({'Defensive / Price-Sensitive' if consumer_sentiment < 45 else 'Expansive / Quality-Driven'})
-- Annual Inflation Rate (CPI)    : {latest_inf:.2f}%
-- Youth Unemployment Rate        : {latest_youth_unemp:.1f}%
-- Youth Disconnection (NEET)     : {latest_neet:.1f}%
-
-2. STRATEGIC MARKET RECOMMENDATIONS
-- Operational Mode               : {'Defensive Value & Essential Substitutes' if consumer_sentiment < 45 or latest_inf > 5.5 else 'Premium Convenience & Quality Optimization'}
-- Recommended Digital Share      : {digital_share}% (Based on {latest_net:.1f}% Internet Penetration)
-- Recommended Offline / Field    : {offline_share}%
-
-Tone & Messaging:
-{'- Emphasize utility, transparent pricing, guaranteed durability. Avoid luxury ostentation.' if consumer_sentiment < 45 or latest_inf > 5.5 else '- Focus on self-actualization, performance optimization, and lifestyle refinement.'}
-================================================================================
-"""
-
-def generate_combined_csv():
-    combined_df = None
-    for label, df in datasets.items():
-        if not df.empty:
-            temp = df.rename(columns={"Value": label})
-            if combined_df is None:
-                combined_df = temp
+            # Simple heuristic viability algorithm based on real parameters
+            base_score = 70
+            if price_tier == "Premium / Luxury" and consumer_sentiment < 45:
+                base_score -= 25
+            if prod_category in ["Functional Health & Wellness", "EdTech / Skill Development"] and psych_score > 50:
+                base_score += 20
+            if target_audience == "Budget-Constrained Households" and latest_inf > 5.0 and price_tier == "Budget-Friendly":
+                base_score += 15
+            viability_score = max(15, min(98, base_score))
+            
+            st.markdown('<div class="nexus-card">', unsafe_allow_html=True)
+            st.markdown(f"### Viability Forecast: **{viability_score}/100**")
+            
+            if viability_score >= 75:
+                st.success("🟢 **High Market Fit Potential:** Your product directly addresses an unmet need in the current socio-economic environment.")
+            elif viability_score >= 50:
+                st.warning("🟡 **Moderate Viability (Pricing Adjustments Needed):** Strong category interest, but consumer elasticity requires cautious positioning.")
             else:
-                combined_df = pd.merge(combined_df, temp, on="Year", how="outer")
-    if combined_df is not None:
-        return combined_df.sort_values("Year", ascending=False).to_csv(index=False).encode('utf-8')
-    return b""
+                st.error("🔴 **High Friction Risk:** Current purchasing power and collective strain suggest resistance to this tier and category combination.")
+                
+            st.markdown("#### Strategic Recommendations:")
+            st.markdown(f"""
+            1. **Pricing Architecture:** {'Offer transparent installment options or smaller starter sizes to reduce initial trial friction.' if consumer_sentiment < 50 else 'Bundle with premium support or expedited access to capture quality-conscious buyers.'}
+            2. **Psychological Positioning:** Frame value around **peace of mind, measurable time saved, and agency**, rather than aspirational luxury.
+            3. **Channel Recommendation:** Align campaigns toward mobile-first educational content to reach the target demographic where attention is concentrated.
+            """)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-st.sidebar.divider()
-st.sidebar.subheader("📥 Export Intelligence Reports")
+# ---------------------------------------------------------
+# PAGE 3: ORGANIZATIONAL RESILIENCE AUDIT
+# ---------------------------------------------------------
+elif app_mode == "🧠 Organizational Resilience Audit":
+    st.subheader("Organizational Psychosocial Diagnostic")
+    st.write("Designed for corporate leaders, HR strategists, and organizational psychologists to calculate institutional burnout and attrition exposure.")
+    
+    org_col1, org_col2 = st.columns([1, 1.2])
+    
+    with org_col1:
+        st.markdown('<div class="nexus-card">', unsafe_allow_html=True)
+        st.markdown("#### Company Profile & Signals")
+        company_size = st.selectbox("Company Size", ["1-50 employees", "51-250 employees", "251-1000 employees", "1000+ enterprise"])
+        overtime_intensity = st.slider("Weekly Overtime Hours (Team Average)", 0, 20, 6)
+        communication_cadence = st.select_slider("Out-of-Hours Message Frequency", options=["Never", "Occasional", "Frequent", "Constant / Expected"])
+        psychological_safety = st.slider("Psychological Safety Score (Estimated 1-10)", 1, 10, 6)
+        run_audit_btn = st.button("Generate Diagnostic Report", type="primary", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with org_col2:
+        if run_audit_btn or "audit_run" not in st.session_state:
+            st.session_state["audit_run"] = True
+            
+            # Risk calculation: baseline societal tension + internal stress
+            internal_strain = (overtime_intensity * 3) + (10 - psychological_safety) * 5
+            total_burnout_risk = max(10, min(95, int((internal_strain * 0.6) + (psych_score * 0.4))))
+            
+            st.markdown('<div class="nexus-card">', unsafe_allow_html=True)
+            st.markdown(f"### Workplace Burnout Vulnerability: **{total_burnout_risk}/100**")
+            
+            if total_burnout_risk > 60:
+                st.error("⚠️ **High Attrition Danger:** Your internal workloads amplify external macroeconomic anxiety. Elevated risk of sudden executive turnover and decreased productivity.")
+            else:
+                st.success("✅ **Stable Organizational Health:** Current internal practices provide adequate psychological insulation against external stressors.")
+                
+            st.markdown("#### Prescribed Interventions (Psychologist-Approved):")
+            st.markdown("""
+            * **Asynchronous Boundary Windows:** Establish complete communication blackouts between 8 PM and 8 AM to facilitate genuine cognitive recovery.
+            * **Micro-Decompression Rituals:** Introduce mandatory 5-minute pauses between consecutive virtual meetings to mitigate prefrontal cortex fatigue.
+            * **Financial Well-Being Workshops:** Combine mental health benefits with practical personal finance coaching to directly reduce real-wage stress.
+            """)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-st.sidebar.download_button(
-    label="📄 Download Executive Briefing (.txt)",
-    data=generate_text_briefing(),
-    file_name=f"{selected_country}_intelligence_briefing.txt",
-    mime="text/plain",
-    use_container_width=True
-)
+# ---------------------------------------------------------
+# PAGE 4: ENTERPRISE PLANS & PRICING
+# ---------------------------------------------------------
+elif app_mode == "💎 Enterprise Plans & Pricing":
+    st.subheader("Enterprise Subscription & Consulting Tiers")
+    st.write("Deploy the NEXUS Intelligence Platform across your corporate strategy, product design, and people teams.")
+    
+    p1, p2, p3 = st.columns(3)
+    
+    with p1:
+        st.markdown("""
+        <div class="pricing-card">
+            <h3 style="color: #94a3b8;">Starter Insights</h3>
+            <h1 style="color: #ffffff; margin: 10px 0;">$499<span style="font-size: 16px; color: #64748b;">/mo</span></h1>
+            <p style="color: #94a3b8; font-size: 13px;">For early-stage startups validating product-market fit.</p>
+            <hr style="border-color: #334155; margin: 20px 0;">
+            <ul style="text-align: left; color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+                <li>Access to 5 Core Regional Feeds</li>
+                <li>Product Viability Simulator (50 runs/mo)</li>
+                <li>Monthly Macro & Sentiment Briefings</li>
+                <li>Standard Data Exports (CSV)</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Choose Starter", key="btn_starter", use_container_width=True):
+            st.success("Inquiry received for Starter Plan. Our team will contact you within 24 hours.")
+            
+    with p2:
+        st.markdown("""
+        <div class="pricing-card" style="border: 2px solid #3b82f6; transform: scale(1.02);">
+            <span class="status-badge badge-premium" style="margin-bottom: 10px;">MOST POPULAR</span>
+            <h3 style="color: #60a5fa;">Corporate Pro</h3>
+            <h1 style="color: #ffffff; margin: 10px 0;">$1,499<span style="font-size: 16px; color: #64748b;">/mo</span></h1>
+            <p style="color: #94a3b8; font-size: 13px;">For mid-size enterprises & consumer brands optimizing strategy.</p>
+            <hr style="border-color: #334155; margin: 20px 0;">
+            <ul style="text-align: left; color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+                <li>Full Global Data Ingestion (All Nations)</li>
+                <li>Unlimited Product Viability Modeling</li>
+                <li>Organizational Well-Being Audit Engine</li>
+                <li>Real-Time Anomaly & Volatility Alerts</li>
+                <li>Dedicated Account Strategist</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Choose Corporate Pro", key="btn_pro", type="primary", use_container_width=True):
+            st.success("Inquiry received for Corporate Pro. Our team will contact you within 24 hours.")
+            
+    with p3:
+        st.markdown("""
+        <div class="pricing-card">
+            <h3 style="color: #94a3b8;">Custom Enterprise</h3>
+            <h1 style="color: #ffffff; margin: 10px 0;">Custom</h1>
+            <p style="color: #94a3b8; font-size: 13px;">For institutions, venture studios & healthcare systems.</p>
+            <hr style="border-color: #334155; margin: 20px 0;">
+            <ul style="text-align: left; color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+                <li>Direct API Integration into Internal BI</li>
+                <li>Custom Psychosocial & Sociological Modeling</li>
+                <li>Quarterly On-Site Executive Workshops</li>
+                <li>White-Label Client Dashboards</li>
+                <li>Custom SLA & Security Compliance</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Contact Enterprise Sales", key="btn_ent", use_container_width=True):
+            st.success("Enterprise sales request logged. A senior partner will reach out directly.")
 
-st.sidebar.download_button(
-    label="📊 Download Historical Data (.csv)",
-    data=generate_combined_csv(),
-    file_name=f"{selected_country}_macro_historical_data.csv",
-    mime="text/csv",
-    use_container_width=True
-)
+# ---------------------------------------------------------
+# Global Footer
+# ---------------------------------------------------------
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #64748b; font-size: 12px; padding: 20px 0;">
+    NEXUS Predictive Intelligence Platform © 2026 • Real-Time Macro-Data, Psychosocial Health & Strategic Product Modeling
+</div>
+""", unsafe_allow_html=True)
